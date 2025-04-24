@@ -13,6 +13,7 @@ max_size=0
 ext_filters=()
 summary_only=false
 output_file=""
+max_depth=-1
 
 print_usage() {
   echo "Использование: $0 [опции] [директория]"
@@ -28,6 +29,7 @@ print_usage() {
   echo "  -m <KB>          Пропустить файлы больше указанного размера"
   echo "  -f <ext1,ext2>   Обрабатывать только файлы с указанными расширениями"
   echo "  -s               Только дерево директорий"
+  echo "  -d <depth>       Максимальная глубина рекурсии (по умолчанию: без ограничений)"
   echo "  -c <file>        Использовать кастомный файл config.toml"
   echo "  -h, --help       Показать это сообщение"
   exit 1
@@ -67,6 +69,8 @@ while [[ $# -gt 0 ]]; do
     -f) IFS=',' read -r -a ext_filters <<< "$2"; shift 2;;
     --ext=*) IFS=',' read -r -a ext_filters <<< "${1#*=}"; shift;;
     -s|--summary) summary_only=true; shift;;
+    -d) max_depth="$2"; shift 2;;
+    --max-depth=*) max_depth="${1#*=}"; shift;;
     -c) CONFIG_FILE="$2"; shift 2;;
     --config=*) CONFIG_FILE="${1#*=}"; shift;;
     -h|--help) print_usage;;
@@ -96,6 +100,14 @@ fi
 # Validate
 [[ ! -d "$input_dir" ]] && echo "Ошибка: $input_dir не директория" && exit 1
 
+# Validate max_depth
+if [[ "$max_depth" != "-1" ]]; then
+  if ! [[ "$max_depth" =~ ^[0-9]+$ ]] || [[ "$max_depth" -lt 0 ]]; then
+    echo "Ошибка: -d должен быть неотрицательным целым числом"
+    exit 1
+  fi
+fi
+
 # Prepare ignore/whitelist lists
 [[ ${#il_override[@]} -gt 0 ]] && ignores=("${il_override[@]}") || ignores=("${default_ignores[@]}")
 [[ ${#wl_override[@]} -gt 0 ]] && whitelist=("${wl_override[@]}") || whitelist=("${default_whitelist[@]}")
@@ -109,6 +121,7 @@ echo "Обработка: $input_dir" >&2
 
 # Build find filters
 find_args=()
+[[ "$max_depth" != "-1" ]] && find_args+=(-maxdepth "$max_depth")
 for pat in "${ignores[@]}" "${exclude_patterns[@]}" "tree_list.tmp"; do
   find_args+=( -path "*/$pat" -prune -o )
 done

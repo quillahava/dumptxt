@@ -1,0 +1,5 @@
+[ignore_list]
+paths = ["__pycache__", ".git", "node_modules", ".next", "dist", "vendor"]
+
+[white_list]
+paths = []

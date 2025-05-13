@@ -146,8 +146,15 @@ process_file() {
     ext="${file##*.}"
     [[ ! " ${ext_filters[*]} " =~ " $ext " ]] && { echo "Пропущен(ext): $file" >> "$output_file"; return; }
   }
-  mime=$(file --mime-type -b "$file")
-  [[ "$include_binary" == false && ! "$mime" =~ text/ ]] && { echo "Пропущен(bin): $file" >> "$output_file"; return; }
+  if [[ "$include_binary" == false ]]; then
+    if grep -qI . "$file"; then
+      : # текстовый файл, продолжаем
+    else
+      echo "Пропущен(bin): $file" >> "$output_file"
+      return
+    fi
+  fi
+
   echo -e "\n===== $file =====" >> "$output_file"
   if file "$file" | grep -q troff; then
     man -P cat "$file" >> "$output_file" 2>/dev/null || \
@@ -166,9 +173,9 @@ process_file() {
     fi
   fi
 }
-
 # Build tree + content
 echo -e "===== Структура $dir_name =====\n" >> "$output_file"
+output_file="$(realpath "$output_file")"
 cd "$input_dir" || { echo "Ошибка: не удалось перейти в директорию $input_dir"; exit 1; }
 tmp_file="/tmp/dumptxt_tree_list_$$.tmp"
 find . "${find_args[@]}" | sed 's|^\./||' > "$tmp_file"
